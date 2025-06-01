@@ -1,3 +1,5 @@
+import javax.swing.SpinnerDateModel;
+
 public class Main {
     private static final int[] InsPermutation = { //Inisital Permuation Table (IP)
         58, 50, 42, 34, 26, 18, 10, 2,
@@ -217,8 +219,11 @@ public class Main {
         return combined;
     }
     public static void main(String[] args) {
-        long key = 0x133447799BBCE0F1L; //Key <<<
-        long input= 0x0123456789ABCDEFL; //Data Block <<<
+
+        FileReader reader = new FileReader();
+        reader.readInputs(); //Prompts user for the name of a file to read from
+        long key = Long.parseLong(reader.getKey()); //Key <<<
+        long input= Long.parseLong(reader.getPlainText()); //Data Block <<<
         long dataBlock = permute(input, InsPermutation);
         long des0 = RoundsDES0(dataBlock, KeyGenerate(key));
         System.out.println(des0);

@@ -4,7 +4,7 @@ import java.io.FileNotFoundException;
 import java.util.Scanner;
 
 
-public class A2
+public class FileReader
 {
     static String PLAINTEXT ="";
     static String PDASH ="";
@@ -14,19 +14,10 @@ public class A2
     
 
 
-    public static void main(String[] args)
-    {
-        A2 A2 = new A2();
-        System.out.println("Plaintext: " +PLAINTEXT);
-        Scanner scan = new Scanner(System.in);
-        A2.readInputs();
-        System.out.println("Plaintext: " +PLAINTEXT);
-        System.out.println("PDASH: " + PDASH);
-        System.out.println("KEY: " + KEY);
-        System.out.println("KEYDASH: " + KEYDASH);
-       
-        
-    }
+FileReader()
+{
+
+}
 
     public void readInputs() {
         try {
@@ -39,22 +30,22 @@ public class A2
             while (scan.hasNextLine()) {
                 String line = scan.nextLine().trim();
                 if (!line.isEmpty() && PLAINTEXT.equals("")) {
-                    PLAINTEXT = line;
+                    setPlaintext(line);
                     
                 }
                 else if (!line.isEmpty() &&PDASH.equals(""))
                 {
-                    PDASH = line;
+                    setPlaintextDash(line);
                 }
                 else if (!line.isEmpty() && KEY.equals(""))
                 {
-                    KEY = line;
+                    setKey(line);
                 }
 
                 else if(!line.isEmpty() && KEYDASH.equals(""))
                 {
-                    KEYDASH = line;
-                }
+                    setKeyDash(line);
+                } 
             }
 
             scan.close();
@@ -62,6 +53,47 @@ public class A2
             System.out.println("File not found");
         }
     }
+
+    public void setPlaintext(String Plaintext)
+    {
+        PLAINTEXT = Plaintext;
+
+    }
+
+    public String getPlainText()
+    {
+        return PLAINTEXT;
+    }
+
+      public void setPlaintextDash(String Plaintext)
+    {
+        PDASH = Plaintext;
+
+    }
+
+    public String getPlainTextDash()
+    {
+        return PDASH;
+    }
+
+     public void setKey(String Key)
+    {
+        KEY = Key;
+    }
+    public String getKey()
+    {
+        return KEY;
+    }
+
+      public void setKeyDash(String Key)
+    {
+        KEYDASH = Key;
+    }
+    public String getKeyDash()
+    {
+        return  KEYDASH;
+    }
+    
     
 
     }
