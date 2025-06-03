@@ -1,5 +1,3 @@
-import javax.swing.SpinnerDateModel;
-
 public class Main {
     private static final int[] InsPermutation = { //Inisital Permuation Table (IP)
         58, 50, 42, 34, 26, 18, 10, 2,
@@ -108,134 +106,229 @@ public class Main {
         34, 53, 46, 42, 50, 36, 29, 32
     };    
     private static final int[] LeftShifts = { 1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1 }; //Left Shifts for key parts
+
+       public static int hammingDistance(long a, long b) { //performs a bitwise XOR between a and b, shows how much the output changes between rounds when 1 input bit is flipped
+        long x =a^b; //XOR to identify differing bits
+        int setBits =0;
+        while(x>0) //Count the number of 1s in the result
+        {
+            setBits += x & 1; //Check if least significant bit is 1
+            x >>=1; //Shift right by 1
+        }
+        return setBits; //Returns numbering of differing bits
+    }
+    
     
     private static long permute(long input, int[] permutationTable) { //Applies Permutation tables for various functions
         long output = 0;
-        for (int i = 0; i < permutationTable.length; i++) {
-            output <<= 1;
-            output |= (input >> (64 - permutationTable[i])) & 1;
+        for (int i = 0; i < permutationTable.length; i++) { // Runs through selected table
+            output |= (input >> (64 - permutationTable[i])) & 0x01;
+            if (i < permutationTable.length - 1) {
+                output <<= 1;
             }
+        }
         return output;
         }
+        private static int permuteFunction(int input, int[] permutationTable) { //Applies Permutation tables for Permutation Function
+            long output = 0; //Expands into 64-bit for permutation
+            for (int i = 0; i < permutationTable.length; i++) { 
+                output |= (input >> (64 - permutationTable[i])) & 0x01;
+                if (i < permutationTable.length - 1) {
+                    output <<= 1;
+                }
+            }
+            long convert = output & 0xFFFFFFFFL;
+            return (int) convert; //Converts back into 32-bit data type
+            }
     public static long[] KeyGenerate(long key) { //Splits key for Rounds FUnction
         long[] roundKeys = new long[16]; //Placeholder variable for the subkeys
-        int rawC = (int) (key >> 28) & 268435455; 
+        int rawC = (int) (key >> 28) & 268435455; //Splits key into 28-bit halves
         int rawD = (int) key & 268435455;
-        int splitC = (int) permute(rawC, PemutationChoice1C);
-        int splitD = (int) permute(rawD, PemutationChoice1D);
-        for (int i = 0; i < 16; i++) {
+        int splitC = (int) permute(rawC, PemutationChoice1C); //Permute half C with Choice1-C table
+        int splitD = (int) permute(rawD, PemutationChoice1D); //Permute half D with Choice1-D table
+        for (int i = 0; i < 16; i++) { //Genertate round keys for 16 rounds
             int roundC = ((splitC << LeftShifts[i]) | (splitC >> (28-LeftShifts[i]))) & 268435455;
             int roundD = ((splitD << LeftShifts[i]) | (splitD >> (28-LeftShifts[i]))) & 268435455;
-            long mergedCD = ((long) roundC << 28) | roundD ;
-            roundKeys[i] = permute(mergedCD, PemutationChoice2);
+            long mergedCD = ((long) roundC << 28) | roundD ; //Merges generated round keys
+            roundKeys[i] = permute(mergedCD, PemutationChoice2); //Permute round keys with Choice 2 table
         }
         return roundKeys;
     }
     public static int sBoxSubstitution(int input) { //Implements SBox subistution
         int output = 0;
         for (int i = 0; i < 8; i++) {
-            int substitute = (input >> (42 - 6 * i)) & 63;
-            int row = ((substitute & 32) >> 4) | (substitute & 1);
-            int col = (substitute >> 1) & 15;
-            output <<=4;
+            int substitute = (input >> (42 - 6 * i)) & 0x3F;
+            int row = ((substitute & 0x20) >> 4) | (substitute & 1); //Generates row value from first & last bit
+            int col = (substitute >> 1) & 0x0F; //Generates column value from middle bits
             output |= SBoxes[i][row][col];
+            if (i < 7){
+                output <<=4;
+            }
         }
         return output;
     }
-    public static long RoundsDES0(long data, long[] keys) { //Origitnal DES Algorithum
-        long left = (data >> 32) & 0xFFFFFFFF;
-        long right = (data & 0xFFFFFFFF); //Splits the data into Left & Right Blocks
-        long placeHolder = 0; //Placeholder Variable for side swaps
-        long leftFinal = 0; //Placeholder Variable for the final Left
-        long rightFinal = 0;  //Placeholder variable for the final right
-        for (int i = 0; i < 16; i++) {
-            placeHolder = right;
-            long rightExpanded = permute(right, ExpTable); //Permutate Right with the Expansion Table
-            long rightKeyApplied = rightExpanded ^ keys[i]; //Keys are applied to each round
-            long rightSubistute = sBoxSubstitution((int)rightKeyApplied); //Applies SBox Subistution
-            rightFinal = permute(rightSubistute, PermutationFunction);
-            leftFinal = rightFinal ^ left; //XOR the right against the left and swap places
-            left = placeHolder; //Origitnal Right is put into Left for the next round
-        }
-        long combined = (rightFinal << 32) | (leftFinal & 0xFFFFFFFF); //Left & Right are recombined
-        long combinedFinal = permute(combined, InvPermutation); //Final Inverse Permutation Applied
-        return combinedFinal;
-    }
-    public static long RoundsDES1(long data) { //Origitnal DES Algorithum
-        long left = (data >> 32) & 0xFFFFFFFF;
-        long right = (data & 0xFFFFFFFF); //Splits the data into Left & Right Blocks
-        long placeHolder = 0; //Placeholder Variable for side swaps
-        long leftFinal = 0; //Placeholder Variable for the final Left
-        long rightFinal = 0;  //Placeholder variable for the final right
-        for (int i = 0; i < 16; i++) {
-            placeHolder = right;
-            long rightExpanded = permute(right, ExpTable); //Permutate Right with the Expansion Table
-            // Keys are not applied in this version
-            long rightSubistute = sBoxSubstitution((int)rightExpanded); //Applies SBox Subistution
-            rightFinal = permute(rightSubistute, PermutationFunction);
-            leftFinal = rightFinal ^ left; //XOR the right against the left and swap places
-            left = placeHolder; //Origitnal Right is put into Left for the next round
-        }
-        long combined = (rightFinal << 32) | (leftFinal & 0xFFFFFFFF); //Left & Right are recombined
-        long combinedFinal = permute(combined, InvPermutation); //Final Inverse Permutation Applied
-        return combinedFinal;
-    }
-    public static long RoundsDES2(long data, long[] keys) { //Origitnal DES Algorithum
-        long left = (data >> 32) & 0xFFFFFFFF;
-        long right = (data & 0xFFFFFFFF); //Splits the data into Left & Right Blocks
-        long placeHolder = 0; //Placeholder Variable for side swaps
-        long leftFinal = 0; //Placeholder Variable for the final Left
-        long rightFinal = 0;  //Placeholder variable for the final right
-        for (int i = 0; i < 16; i++) {
-            placeHolder = right;
-            long rightExpanded = permute(right, ExpTable); //Permutate Right with the Expansion Table
-            long rightKeyApplied = rightExpanded ^ keys[i]; //Keys are applied to each round
-            long rightSubistute = permute(rightKeyApplied, InvPermutation);  //Inverse Permutation applied instead of SBoxes
-            rightFinal = permute(rightSubistute, PermutationFunction);
-            leftFinal = rightFinal ^ left; //XOR the right against the left and swap places
-            left = placeHolder; //Origitnal Right is put into Left for the next round
-        }
-        long combined = (rightFinal << 32) | (leftFinal & 0xFFFFFFFF); //Left & Right are recombined
-        long combinedFinal = permute(combined, InvPermutation); //Final Inverse Permutation Applied
-        return combinedFinal;
-    }
-    public static long RoundsDES3(long data, long[] keys) { 
-        long left = (data >> 32) & 0xFFFFFFFF;
-        long right = (data & 0xFFFFFFFF); //Splits the data into Left & Right Blocks
-        long placeHolder = 0; //Placeholder Variable for side swaps
-        long leftFinal = 0; //Placeholder Variable for the final Left
-        long rightFinal = 0;  //Placeholder variable for the final right
-        for (int i = 0; i < 16; i++) {
-            placeHolder = right;
-            long rightExpanded = permute(right, ExpTable); //Permutate Right with the Expansion Table
-            long rightKeyApplied = rightExpanded ^ keys[i]; //Keys are applied to each round
-            long rightSubistute = sBoxSubstitution((int)rightKeyApplied); //Applies SBox Subistution
-            rightFinal = permute(rightSubistute, PermutationFunction);
-            leftFinal = rightFinal ^ left; //XOR the right against the left and swap places
-            left = placeHolder; //Origitnal Right is put into Left for the next round
-        }
-        long combined = (rightFinal << 32) | (leftFinal & 0xFFFFFFFF); //Left & Right are recombined
-        //Final Invers Permutation isn't implemented in this version
-        return combined;
-    }
-    public static void main(String[] args) {
 
-        FileReader reader = new FileReader();
-        reader.readInputs(); //Prompts user for the name of a file to read from
-        long key = Long.parseLong(reader.getKey()); //Key <<<
-        long input= Long.parseLong(reader.getPlainText()); //Data Block <<<
-        long dataBlock = permute(input, InsPermutation);
-        long des0 = RoundsDES0(dataBlock, KeyGenerate(key));
-        System.out.println(des0);
-        long des1 = RoundsDES1(dataBlock);
-        System.out.println(des1);
-        long des2 = RoundsDES2(dataBlock, KeyGenerate(key));
-        System.out.println(des2);
-        long des3 = RoundsDES3(dataBlock, KeyGenerate(key));
-        System.out.println(des3);
+       public static long[] des0Rounds(long data, long[] keys) {
+        long[] roundStates = new long[17]; //Stores at each round 
+        long left = (data >> 32) & 0xFFFFFFFFL;
+        long right = data & 0xFFFFFFFFL; //Splits data into left and right blocks
+        roundStates[0] = (left << 32) | right; //Stores intial state
+
+        //Performs 16 rounds of DES
+        for (int i = 1; i <= 16; i++) {
+            //Expands right using expansion table
+            long expanded = permute(right, ExpTable);
+            //XOR with the i-th round key
+            long xored = expanded ^ keys[i - 1];
+            //Apply s-box substituation
+            int sboxed = sBoxSubstitution((int)xored);
+            //Apply permutation function to S-box
+            int permuted = permuteFunction(sboxed, PermutationFunction);
+            //New right is left with XOR applied, new left becomes previous right 
+            long newRight = left ^ permuted;
+            left = right;
+            right = newRight;
+            roundStates[i] = (left << 32) | right;
+        }
+        return roundStates;
     }
-    
+
+     public static long[] des1Rounds(long data) {
+        long[] roundStates = new long[17]; //Store at each round 
+        long left = (data >> 32) & 0xFFFFFFFFL;
+        long right = data & 0xFFFFFFFFL; //Splits data into left and right 
+        roundStates[0] = (left << 32) | right;
+        //Performs 16 rounds of DES 
+        for (int i = 1; i <= 16; i++) {
+            //Expands right using expansion table
+            long expanded = permute(right, ExpTable);
+            //Apply s-box substituation into expanded table
+            int sboxed = sBoxSubstitution((int)expanded);
+            //Apply permutation to S-box
+            int permuted = permuteFunction(sboxed, PermutationFunction);
+            //New Right is left with XOR applied. New left becomes previous right 
+            long newRight = left ^ permuted;
+            left = right;
+            right = newRight;
+            //Combine left and right
+            roundStates[i] = (left << 32) | right;
+        }
+        return roundStates;
+    }
+  
+  //inverse permutation applied to the XOR result before substituation 
+    public static long[] des2Rounds(long data, long[] keys) {
+        long[] roundStates = new long[17];
+        long left = (data >> 32) & 0xFFFFFFFFL;
+        long right = data & 0xFFFFFFFFL;
+        roundStates[0] = (left << 32) | right;
+        for (int i = 1; i <= 16; i++) {
+            long expanded = permute(right, ExpTable);
+            long xored = expanded ^ keys[i - 1];
+            long invPerm = permute(xored, InvPermutation);
+            int permuted = permuteFunction((int)invPerm, PermutationFunction);
+            long newRight = left ^ permuted;
+            left = right;
+            right = newRight;
+            roundStates[i] = (left << 32) | right;
+        }
+        return roundStates;
+    }
+    //Skips final permutation function and uses raw S-box
+   public static long[] des3Rounds(long data, long[] keys) {
+        long[] roundStates = new long[17];
+        long left = (data >> 32) & 0xFFFFFFFFL;
+        long right = data & 0xFFFFFFFFL;
+        roundStates[0] = (left << 32) | right;
+        for (int i = 1; i <= 16; i++) {
+            long expanded = permute(right, ExpTable);
+            long xored = expanded ^ keys[i - 1];
+            int sboxed = sBoxSubstitution((int)xored);
+            long newRight = left ^ sboxed;
+            left = right;
+            right = newRight;
+            roundStates[i] = (left << 32) | right;
+        }
+        return roundStates;
+    }
+   //Compares hamming distance of two arrays at each round
+    public static int[] compareRounds(long[] a, long[] b) {
+    int[] diffs = new int[a.length]; //Array to store hamming distance
+    for (int i = 0; i < a.length; i++) {
+        diffs[i] = hammingDistance(a[i], b[i]); //Compute hamming distances between corresponding states
+    }
+    return diffs;
+    }
+
+     public static String longToBinaryString64(long value) {
+        return String.format("%64s", Long.toBinaryString(value)).replace(' ', '0');
+    }
+public static void main(String[] args) {
+    FileReader reader = new FileReader(); 
+    reader.readInputs(); //Prompts user to enter a file name to read values from
+    //Assigns variables based on data taken from txt file 
+    long p = Long.parseLong(reader.getPlainText(), 2);
+    long pDash = Long.parseLong(reader.getPlainTextDash(), 2);
+    long k = Long.parseLong(reader.getKey(), 2);
+    long kDash = Long.parseLong(reader.getKeyDash(), 2);
+
+    long pPerm = permute(p, InsPermutation);
+    long pDashPerm = permute(pDash, InsPermutation);
+
+    long[] keysK = KeyGenerate(k);
+    long[] keysKDash = KeyGenerate(kDash);
+
+    long[][] roundsP = {
+        des0Rounds(pPerm, keysK),
+        des1Rounds(pPerm),
+        des2Rounds(pPerm, keysK),
+        des3Rounds(pPerm, keysK)
+    };
+
+    long[][] roundsPDash = {
+        des0Rounds(pDashPerm, keysK),
+        des1Rounds(pDashPerm),
+        des2Rounds(pDashPerm, keysK),
+        des3Rounds(pDashPerm, keysK)
+    };
+
+    long[][] roundsKDash = {
+        des0Rounds(pPerm, keysKDash),
+        des1Rounds(pPerm),
+        des2Rounds(pPerm, keysKDash),
+        des3Rounds(pPerm, keysKDash)
+    };
+
+    int[][] diffPvsPDash = new int[17][4];
+    int[][] diffPvsKDash = new int[17][4];
+
+    for (int round = 0; round <= 16; round++) {
+        for (int i = 0; i < 4; i++) {
+            diffPvsPDash[round][i] = hammingDistance(roundsP[i][round], roundsPDash[i][round]);
+            diffPvsKDash[round][i] = hammingDistance(roundsP[i][round], roundsKDash[i][round]);
+        }
+    }
+
+    String c1 = longToBinaryString64(roundsP[0][16]);
+    String c1Dash = longToBinaryString64(roundsPDash[0][16]);
+    String c2 = longToBinaryString64(roundsKDash[0][16]);
+
+    double elapsedSeconds = 0.0; // NEEDS TO BE IMPLEMENTED 
+    //Generates output 
+    OutputWriter.writeOutput(
+        reader.getPlainText(),
+        reader.getPlainTextDash(),
+        reader.getKey(),
+        reader.getKeyDash(),
+        c1,
+        c2,
+        diffPvsPDash,
+        diffPvsKDash,
+        elapsedSeconds
+    );
+}
 }
  
+
 
 
